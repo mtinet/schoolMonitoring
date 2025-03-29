@@ -15,8 +15,6 @@
 </head>
 <body>
   <h2>📊 직업계고 대시보드 (데이터 모니터링)</h2>
-  <button onclick="logout()">로그아웃</button>
-  <br><br>
 
   <div class="section">
     <label>연도:</label>
@@ -32,8 +30,33 @@
     <span id="finalCategoryWrapper" class="inline"></span>
 
     <button onclick="loadFilteredData()">선택 항목 보기</button>
+    <button onclick="logout()">로그아웃</button>
+    <br>
     <canvas id="chart" width="600" height="300"></canvas>
   </div>
+
+  <div class="section">
+    <h3>📊 연도별 항목 비교</h3>
+    <label>학교:</label>
+    <select id="compareSchool"></select>
+  
+    <label>카테고리 구분:</label>
+    <select id="compareMainCategory" onchange="updateCompareSubCategoryOptions()">
+      <option value="기본정보">기본정보</option>
+      <option value="사업명">사업명</option>
+    </select>
+  
+    <span id="compareSubCategoryWrapper" class="inline"></span>
+    <span id="compareFinalCategoryWrapper" class="inline"></span>
+  
+    <label>연도 범위:</label>
+    <select id="compareStartYear"></select> ~
+    <select id="compareEndYear"></select>
+  
+    <button onclick="compareAcrossYears()">연도 비교</button>
+    <canvas id="compareChart" width="600" height="300"></canvas>
+  </div>
+  
 
   <script>
     const yearSelect = document.getElementById("yearSelect");
@@ -74,6 +97,9 @@
         availableYears = [...yearSet].sort();
         yearSelect.innerHTML = availableYears.map(y => `<option value="${y}"${y === '2024' ? ' selected' : ''}>${y}</option>`).join("");
         updateSubCategoryOptions();
+        fillCompareYearDropdowns();
+        fillCompareSchools();
+        updateCompareSubCategoryOptions();
       });
     }
 
@@ -126,11 +152,11 @@
       if (type === "기본정보") return;
 
       const options = `<label>항목:</label><select id="finalCategorySelect">
-  <option value="통합사업액">통합사업액</option>
-  <option value="교부액">교부액</option>
-  <option value="사용액">사용액</option>
-  <option value="반납액">반납액</option>
-</select>`;
+        <option value="통합사업액">통합사업액</option>
+        <option value="교부액">교부액</option>
+        <option value="사용액">사용액</option>
+        <option value="반납액">반납액</option>
+        </select>`;
 
       finalCategoryWrapper.innerHTML = options;
     }
@@ -213,6 +239,135 @@
         }
       });
     }
+
+    let compareChartInstance = null;
+
+    function fillCompareYearDropdowns() {
+    const start = document.getElementById("compareStartYear");
+    const end = document.getElementById("compareEndYear");
+    const options = availableYears.map(y => `<option value="${y}">${y}</option>`).join("");
+
+    start.innerHTML = options;
+    end.innerHTML = options;
+    start.value = "2022";
+    end.value = "2024";
+    }
+
+    function fillCompareSchools() {
+    const compareSchool = document.getElementById("compareSchool");
+    const schoolSet = new Set();
+    schoolDataSnapshot.forEach(snap => {
+        schoolSet.add(snap.key);
+    });
+    compareSchool.innerHTML = Array.from(schoolSet)
+        .map(name => `<option value="${name}">${name}</option>`)
+        .join("");
+    }
+
+    function updateCompareSubCategoryOptions() {
+    const type = document.getElementById("compareMainCategory").value;
+    const year = document.getElementById("compareStartYear").value;
+    const subWrapper = document.getElementById("compareSubCategoryWrapper");
+    const finalWrapper = document.getElementById("compareFinalCategoryWrapper");
+
+    if (type === "기본정보") {
+        subWrapper.innerHTML = `<label>항목:</label>
+        <select id="compareSubCategorySelect">
+            <option value="취업률">취업률</option>
+            <option value="실습실수">실습실수</option>
+            <option value="취업자수">취업자수</option>
+        </select>`;
+        finalWrapper.innerHTML = "";
+    } else {
+        const businessSet = new Set();
+        schoolDataSnapshot.forEach(snap => {
+        const yearData = snap.val()[year];
+        if (yearData && yearData["사업명"]) {
+            Object.keys(yearData["사업명"]).forEach(biz => businessSet.add(biz));
+        }
+        });
+
+        const options = Array.from(businessSet)
+        .map(b => `<option value="${b}">${b}</option>`)
+        .join("");
+
+        subWrapper.innerHTML = `<label>사업명:</label>
+        <select id="compareSubCategorySelect" onchange="updateCompareFinalCategoryOptions()">
+            ${options}
+        </select>`;
+        updateCompareFinalCategoryOptions();
+    }
+    }
+
+    function updateCompareFinalCategoryOptions() {
+    const wrapper = document.getElementById("compareFinalCategoryWrapper");
+    wrapper.innerHTML = `<label>항목:</label>
+        <select id="compareFinalCategorySelect">
+        <option value="통합사업액">통합사업액</option>
+        <option value="교부액">교부액</option>
+        <option value="사용액">사용액</option>
+        <option value="반납액">반납액</option>
+        </select>`;
+    }
+
+    function compareAcrossYears() {
+    const school = document.getElementById("compareSchool").value;
+    const type = document.getElementById("compareMainCategory").value;
+    const sub = document.getElementById("compareSubCategorySelect").value;
+    const startYear = parseInt(document.getElementById("compareStartYear").value);
+    const endYear = parseInt(document.getElementById("compareEndYear").value);
+    const data = schoolDataSnapshot.child(school).val();
+
+    const labels = [];
+    const datasets = [];
+
+    if (type === "기본정보") {
+        const values = [];
+        for (let y = startYear; y <= endYear; y++) {
+        const value = data?.[y]?.기본정보?.[sub];
+        labels.push(`${y}`);
+        values.push(value ?? 0);
+        }
+        datasets.push({ label: `${school} - ${sub}`, data: values });
+    } else {
+        const final = document.getElementById("compareFinalCategorySelect").value;
+        if (final === "통합사업액") {
+        const items = ["교부액", "사용액", "반납액"];
+        items.forEach(item => {
+            const values = [];
+            for (let y = startYear; y <= endYear; y++) {
+            const value = data?.[y]?.["사업명"]?.[sub]?.[item];
+            labels.includes(`${y}`) || labels.push(`${y}`);
+            values.push(value ?? 0);
+            }
+            datasets.push({ label: item, data: values });
+        });
+        } else {
+        const values = [];
+        for (let y = startYear; y <= endYear; y++) {
+            const value = data?.[y]?.["사업명"]?.[sub]?.[final];
+            labels.push(`${y}`);
+            values.push(value ?? 0);
+        }
+        datasets.push({ label: `${school} - ${sub} - ${final}`, data: values });
+        }
+    }
+
+    if (compareChartInstance) compareChartInstance.destroy();
+    const ctx = document.getElementById("compareChart").getContext("2d");
+    compareChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: `${school} 항목 연도별 비교` }
+        }
+        }
+    });
+    }
+
   </script>
 </body>
 </html>
