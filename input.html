@@ -10,6 +10,15 @@
   <script src="firebase-config.js"></script>
   <!-- XLSX Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    #status {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    #status.success {
+      color: green;
+    }
+  </style>
 </head>
 <body>
   <h2>📥 직업계고 데이터 입력 (admin 전용)</h2>
@@ -20,33 +29,32 @@
   <button onclick="convertExcelToJson()">엑셀 → JSON 변환</button>
   <button onclick="uploadJsonToFirebase()">🔥 Firebase에 저장</button>
   <button onclick="logout()">로그아웃</button>
+  
   <pre id="output" style="background:#f3f3f3;padding:15px;border:1px solid #ccc;"></pre>
-
-  <br><br>
+  <div id="status"></div>
 
   <script>
     let parsedJson = [];
 
     firebase.auth().onAuthStateChanged(function(user) {
-      if (!user || user.email !== 'admin@sen.go.kr') {
+      if (!user) {
+        window.location.replace('index.html');
+      } else if (user.email !== 'admin@sen.go.kr') {
         alert('이 페이지는 관리자만 접근할 수 있습니다.');
-        window.location.href = 'index.html';
+        window.location.replace('index.html');
       }
     });
 
     function logout() {
       firebase.auth().signOut().then(() => {
-        alert("로그아웃 되었습니다.");
-        window.location.href = "index.html";
+        window.location.replace("index.html");
       });
     }
 
     function convertExcelToJson() {
-      const file = document.getElementById("excelFile").files[0];
-      if (!file) {
-        alert("엑셀 파일을 선택해주세요.");
-        return;
-      }
+      const fileInput = document.getElementById("excelFile");
+      const file = fileInput.files[0];
+      if (!file) return;
 
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -77,18 +85,15 @@
         });
 
         document.getElementById("output").textContent = JSON.stringify(parsedJson, null, 2);
+        document.getElementById("status").textContent = "";
       };
       reader.readAsArrayBuffer(file);
     }
 
     function uploadJsonToFirebase() {
-      if (!parsedJson.length) {
-        alert("먼저 엑셀 파일을 변환해주세요.");
-        return;
-      }
+      if (!parsedJson.length) return;
 
       const updates = {};
-
       parsedJson.forEach(entry => {
         const school = entry["학교"];
         const year = entry["연도"];
@@ -115,8 +120,16 @@
       });
 
       firebase.database().ref().update(updates)
-        .then(() => alert("Firebase 업로드 완료!"))
-        .catch(err => alert("오류 발생: " + err.message));
+        .then(() => {
+          document.getElementById("status").textContent = "✔ Firebase 업로드 완료!";
+          document.getElementById("status").className = "success";
+          document.getElementById("excelFile").value = "";
+          document.getElementById("output").textContent = "";
+        })
+        .catch(err => {
+          document.getElementById("status").textContent = "업로드 실패: " + err.message;
+          document.getElementById("status").className = "";
+        });
     }
   </script>
 </body>

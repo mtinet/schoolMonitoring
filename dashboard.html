@@ -71,7 +71,6 @@
 
     firebase.auth().onAuthStateChanged(user => {
       if (!user) {
-        alert("로그인이 필요합니다.");
         window.location.href = "index.html";
         return;
       }
@@ -79,10 +78,9 @@
     });
 
     function logout() {
-      firebase.auth().signOut().then(() => {
-        alert("로그아웃 되었습니다.");
-        window.location.href = "index.html";
-      });
+    firebase.auth().signOut().then(() => {
+        window.location.replace("index.html"); // 뒤로가기 방지 + 알림 제거
+    });
     }
 
     function loadInitialData() {
