@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>직업계고 엑셀 → JSON 변환기</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <h2>📥 엑셀 파일 업로드</h2>
+  <input type="file" id="excelFile" accept=".xlsx" />
+  <button onclick="convertExcelToJson()">엑셀 → JSON 변환</button>
+  <br><br>
+
+  <h3>📄 변환된 JSON 결과</h3>
+  <pre id="output" style="background:#f3f3f3;padding:15px;border:1px solid #ccc;"></pre>
+
+  <script>
+    function convertExcelToJson() {
+      const file = document.getElementById("excelFile").files[0];
+      if (!file) {
+        alert("엑셀 파일을 선택해주세요.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        const result = rows.map(row => {
+          const { 학교, 연도, ...데이터 } = row;
+          return {
+            학교,
+            연도,
+            데이터
+          };
+        });
+
+        document.getElementById("output").textContent = JSON.stringify(result, null, 2);
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+  </script>
+</body>
+</html>

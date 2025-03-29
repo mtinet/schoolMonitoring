@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>📊 직업계고 대시보드 (데이터 모니터링)</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    .section { margin-bottom: 40px; }
+    .inline { display: inline-block; margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <h2>📊 직업계고 대시보드 (데이터 모니터링)</h2>
+  <button onclick="logout()">로그아웃</button>
+  <br><br>
+
+  <div class="section">
+    <label>연도:</label>
+    <select id="yearSelect"></select>
+
+    <label>카테고리 구분:</label>
+    <select id="mainCategory" onchange="updateSubCategoryOptions()">
+      <option value="기본정보">기본정보</option>
+      <option value="사업명">사업명</option>
+    </select>
+
+    <span id="subCategoryWrapper" class="inline"></span>
+    <span id="finalCategoryWrapper" class="inline"></span>
+
+    <button onclick="loadFilteredData()">선택 항목 보기</button>
+    <canvas id="chart" width="600" height="300"></canvas>
+  </div>
+
+  <script>
+    const yearSelect = document.getElementById("yearSelect");
+    const mainCategory = document.getElementById("mainCategory");
+    const subCategoryWrapper = document.getElementById("subCategoryWrapper");
+    const finalCategoryWrapper = document.getElementById("finalCategoryWrapper");
+
+    let chartInstance = null;
+    let schoolDataSnapshot = null;
+    let availableYears = [];
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) {
+        alert("로그인이 필요합니다.");
+        window.location.href = "index.html";
+        return;
+      }
+      loadInitialData();
+    });
+
+    function logout() {
+      firebase.auth().signOut().then(() => {
+        alert("로그아웃 되었습니다.");
+        window.location.href = "index.html";
+      });
+    }
+
+    function loadInitialData() {
+      firebase.database().ref("schoolData").once("value", snapshot => {
+        schoolDataSnapshot = snapshot;
+        const yearSet = new Set();
+        snapshot.forEach(schoolSnap => {
+          const years = schoolSnap.val();
+          for (let year in years) {
+            yearSet.add(year);
+          }
+        });
+        availableYears = [...yearSet].sort();
+        yearSelect.innerHTML = availableYears.map(y => `<option value="${y}"${y === '2024' ? ' selected' : ''}>${y}</option>`).join("");
+        updateSubCategoryOptions();
+      });
+    }
+
+    function updateSubCategoryOptions() {
+        const type = mainCategory.value;
+        let optionsHTML = "";
+        const selectedYear = yearSelect.value;
+
+        if (type === "기본정보") {
+            optionsHTML = `
+            <label>항목:</label>
+            <select id="subCategorySelect" onchange="setFinalCategory()">
+                <option value="취업률">취업률</option>
+                <option value="실습실수">실습실수</option>
+                <option value="취업자수">취업자수</option>
+            </select>`;
+            finalCategoryWrapper.innerHTML = "";
+        }
+
+        else if (type === "사업명") {
+            const businessSet = new Set();
+
+            schoolDataSnapshot.forEach(snap => {
+            const yearData = snap.val()[selectedYear];
+            if (yearData && yearData["사업명"]) {
+                Object.keys(yearData["사업명"]).forEach(biz => businessSet.add(biz));
+            }
+            });
+
+            const businessOptions = Array.from(businessSet).map(biz => `<option value="${biz}">${biz}</option>`).join("");
+
+            optionsHTML = `
+            <label>사업명:</label>
+            <select id="subCategorySelect" onchange="setFinalCategory()">
+                ${businessOptions}
+            </select>`;
+
+            finalCategoryWrapper.innerHTML = ""; // 초기화 후 하위 옵션 설정은 setFinalCategory()에서 처리
+        }
+
+        subCategoryWrapper.innerHTML = optionsHTML;
+        setFinalCategory();
+        }
+
+
+    function setFinalCategory() {
+      const type = mainCategory.value;
+      const sub = document.getElementById("subCategorySelect").value;
+
+      if (type === "기본정보") return;
+
+      const options = `<label>항목:</label><select id="finalCategorySelect">
+  <option value="통합사업액">통합사업액</option>
+  <option value="교부액">교부액</option>
+  <option value="사용액">사용액</option>
+  <option value="반납액">반납액</option>
+</select>`;
+
+      finalCategoryWrapper.innerHTML = options;
+    }
+
+    function getValueFromPath(data, pathArray) {
+      return pathArray.reduce((acc, cur) => acc && acc[cur], data);
+    }
+
+    function loadFilteredData() {
+      const year = yearSelect.value;
+      const type = mainCategory.value;
+      const sub = document.getElementById("subCategorySelect").value;
+
+      if (type === "기본정보") {
+        const path = ["기본정보", sub];
+        loadSingleDataset(path, `${year}년 ${path.join("/")}`);
+      } else {
+        const final = document.getElementById("finalCategorySelect").value;
+        if (final === "통합사업액") {
+          loadMultipleDataset(["사업명", sub], ["교부액", "사용액", "반납액"], year);
+        } else {
+          const path = ["사업명", sub, final];
+          loadSingleDataset(path, `${year}년 ${path.join("/")}`);
+        }
+      }
+    }
+
+    function loadSingleDataset(path, title) {
+      const labels = [];
+      const values = [];
+      const year = yearSelect.value;
+
+      schoolDataSnapshot.forEach(snap => {
+        const school = snap.key;
+        const data = snap.val();
+        const yearData = data?.[year];
+        if (!yearData) return;
+        const value = getValueFromPath(yearData, path);
+        if (value !== undefined) {
+          labels.push(school);
+          values.push(value);
+        }
+      });
+
+      drawChart(labels, [{ label: title, data: values }], title);
+    }
+
+    function loadMultipleDataset(basePath, keys, year) {
+      const labels = [];
+      const datasets = keys.map(key => ({ label: key, data: [] }));
+
+      schoolDataSnapshot.forEach(snap => {
+        const school = snap.key;
+        const data = snap.val();
+        const yearData = data?.[year];
+        if (!yearData) return;
+        labels.push(school);
+
+        keys.forEach((key, idx) => {
+          const value = getValueFromPath(yearData, [...basePath, key]);
+          datasets[idx].data.push(value !== undefined ? value : 0);
+        });
+      });
+
+      drawChart(labels, datasets, `${year}년 ${basePath[1]} 통합사업액`);
+    }
+
+    function drawChart(labels, datasets, title) {
+      const ctx = document.getElementById("chart").getContext("2d");
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: title }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

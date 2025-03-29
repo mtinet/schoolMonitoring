@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>📥 자료 입력 페이지</title>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebase-config.js"></script>
+  <!-- XLSX Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <h2>📥 직업계고 데이터 입력 (admin 전용)</h2>
+
+  <!-- 엑셀 업로드 -->
+  <h3>📁 엑셀 업로드</h3>
+  <input type="file" id="excelFile" accept=".xlsx" />
+  <button onclick="convertExcelToJson()">엑셀 → JSON 변환</button>
+  <button onclick="uploadJsonToFirebase()">🔥 Firebase에 저장</button>
+  <button onclick="logout()">로그아웃</button>
+  <pre id="output" style="background:#f3f3f3;padding:15px;border:1px solid #ccc;"></pre>
+
+  <br><br>
+
+  <script>
+    let parsedJson = [];
+
+    firebase.auth().onAuthStateChanged(function(user) {
+      if (!user || user.email !== 'admin@sen.go.kr') {
+        alert('이 페이지는 관리자만 접근할 수 있습니다.');
+        window.location.href = 'index.html';
+      }
+    });
+
+    function logout() {
+      firebase.auth().signOut().then(() => {
+        alert("로그아웃 되었습니다.");
+        window.location.href = "index.html";
+      });
+    }
+
+    function convertExcelToJson() {
+      const file = document.getElementById("excelFile").files[0];
+      if (!file) {
+        alert("엑셀 파일을 선택해주세요.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        parsedJson = rows.map(row => {
+          const { 학교, 연도, 사업명, 교부액, 사용액, 반납액, 취업률, 실습실수, 취업자수 } = row;
+
+          const 데이터 = {
+            기본정보: {
+              취업률: 취업률,
+              실습실수: 실습실수,
+              취업자수: 취업자수
+            },
+            사업명: {
+              [사업명]: {
+                교부액: 교부액,
+                사용액: 사용액,
+                반납액: 반납액
+              }
+            }
+          };
+
+          return { 학교, 연도, 데이터 };
+        });
+
+        document.getElementById("output").textContent = JSON.stringify(parsedJson, null, 2);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function uploadJsonToFirebase() {
+      if (!parsedJson.length) {
+        alert("먼저 엑셀 파일을 변환해주세요.");
+        return;
+      }
+
+      const updates = {};
+
+      parsedJson.forEach(entry => {
+        const school = entry["학교"];
+        const year = entry["연도"];
+        const data = entry["데이터"];
+
+        if (school && year && data) {
+          for (let key in data) {
+            const value = data[key];
+            if (typeof value === 'object' && !Array.isArray(value)) {
+              for (let subKey in value) {
+                if (typeof value[subKey] === 'object') {
+                  for (let finalKey in value[subKey]) {
+                    updates[`schoolData/${school}/${year}/${key}/${subKey}/${finalKey}`] = value[subKey][finalKey];
+                  }
+                } else {
+                  updates[`schoolData/${school}/${year}/${key}/${subKey}`] = value[subKey];
+                }
+              }
+            } else {
+              updates[`schoolData/${school}/${year}/${key}`] = value;
+            }
+          }
+        }
+      });
+
+      firebase.database().ref().update(updates)
+        .then(() => alert("Firebase 업로드 완료!"))
+        .catch(err => alert("오류 발생: " + err.message));
+    }
+  </script>
+</body>
+</html>
