@@ -53,6 +53,11 @@
 
   <script>
     firebase.initializeApp(firebaseConfig);
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
+      .catch((error) => {
+        console.error("세션 설정 실패:", error);
+      });
+
     function handleKeyPress(event) {
       if (event.key === "Enter") {
         login();
