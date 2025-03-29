@@ -3,15 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <title>서울 직업계고 정보 시스템</title>
-  <!-- Firebase SDK v8 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="firebase-config.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 480px;
+      margin: auto;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #4DA8FF;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #2d91e5;
+    }
+  </style>
   <script>
     firebase.auth().onAuthStateChanged((user) => {
       if (user) {
-        // 이미 로그인된 사용자라면 바로 리디렉션
         if (user.email === "admin@sen.go.kr") {
           window.location.replace("input.html");
         } else {
@@ -20,55 +43,32 @@
       }
     });
   </script>
-  <style>
-    #loginButton {
-      background-color: #42a5f5; /* 밝은 청색 */
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 4px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    #loginButton:hover {
-      background-color: #1e88e5;
-    }
-  </style>
-  
 </head>
 <body>
   <h2>서울 직업계고 정보 시스템</h2>
-
   <input type="email" id="email" placeholder="Email" />
   <input type="password" id="password" placeholder="Password" onkeydown="handleKeyPress(event)" />
-  <button id="loginButton" onclick="login()">Login</button>
-
+  <button onclick="login()">Login</button>
   <p>관리자 페이지는 서울특별시교육청 관리자 계정으로만 접근 가능합니다.</p>
 
   <script>
-    // Firebase 초기화
     firebase.initializeApp(firebaseConfig);
-
     function handleKeyPress(event) {
       if (event.key === "Enter") {
         login();
       }
     }
-
     function login() {
-      var email = document.getElementById("email").value;
-      var password = document.getElementById("password").value;
-
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
       firebase.auth().signInWithEmailAndPassword(email, password)
         .then((userCredential) => {
-          var user = userCredential.user;
-          var userEmail = user.email;
-
+          const user = userCredential.user;
+          const userEmail = user.email;
           if (userEmail === "admin@sen.go.kr") {
-            window.location.replace = "input.html"; // 관리자일 경우
+            window.location.replace("input.html");
           } else {
-            window.location.replace = "dashboard.html"; // 일반 사용자
+            window.location.replace("dashboard.html");
           }
         })
         .catch((error) => {
