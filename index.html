@@ -20,6 +20,21 @@
       }
     });
   </script>
+  <style>
+    #loginButton {
+      background-color: #42a5f5; /* 밝은 청색 */
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #loginButton:hover {
+      background-color: #1e88e5;
+    }
+  </style>
   
 </head>
 <body>
@@ -27,7 +42,7 @@
 
   <input type="email" id="email" placeholder="Email" />
   <input type="password" id="password" placeholder="Password" onkeydown="handleKeyPress(event)" />
-  <button onclick="login()">Login</button>
+  <button id="loginButton" onclick="login()">Login</button>
 
   <p>관리자 페이지는 서울특별시교육청 관리자 계정으로만 접근 가능합니다.</p>
 
