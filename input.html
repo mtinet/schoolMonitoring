@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>📥 자료 입력 페이지</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 반응형 핵심 -->
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -10,22 +11,82 @@
   <script src="firebase-config.js"></script>
   <!-- XLSX Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    button, .custom-file-upload {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      text-align: center;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .custom-file-upload {
+      display: block;
+      background-color: #4DA8FF;
+      color: white;
+      padding: 12px;
+      text-align: center;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .custom-file-upload:hover {
+      background-color: #2d91e5;
+    }
+
+    button {
+      background-color: #4DA8FF;
+      color: white;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #2d91e5;
+    }
+
+    #logoutButton {
+      background-color: #db5b86;
+    }
+
+    #logoutButton:hover {
+      background-color: #e03876;
+    }
+  </style>
+  
 </head>
 <body>
   <h2>📥 직업계고 데이터 입력 (admin 전용)</h2>
 
-  <!-- 엑셀 업로드 -->
   <h3>📁 엑셀 업로드</h3>
+<!-- HTML 부분 -->
+<div class="file-upload-wrapper">
+  <label for="excelFile" class="custom-file-upload">📁 엑셀 파일 선택</label>
   <input type="file" id="excelFile" accept=".xlsx" />
-  <button onclick="convertExcelToJson()">엑셀 → JSON 변환</button>
-  <button onclick="uploadJsonToFirebase()">🔥 Firebase에 저장</button>
-  <button onclick="logout()">로그아웃</button>
-  <pre id="output" style="background:#f3f3f3;padding:15px;border:1px solid #ccc;"></pre>
+</div>
 
-  <br><br>
+<button onclick="convertExcelToJson()">엑셀 → JSON 변환</button>
+<button onclick="uploadJsonToFirebase()">🔥 Firebase에 저장</button>
+<button id="logoutButton" onclick="logout()">로그아웃</button>
+
+
+  
+  <pre id="output"></pre>
 
   <script>
     let parsedJson = [];
+
+    firebase.initializeApp(firebaseConfig);
 
     firebase.auth().onAuthStateChanged(function(user) {
       if (!user || user.email !== 'admin@sen.go.kr') {
@@ -58,15 +119,15 @@
 
           const 데이터 = {
             기본정보: {
-              취업률: 취업률,
-              실습실수: 실습실수,
-              취업자수: 취업자수
+              취업률,
+              실습실수,
+              취업자수
             },
             사업명: {
               [사업명]: {
-                교부액: 교부액,
-                사용액: 사용액,
-                반납액: 반납액
+                교부액,
+                사용액,
+                반납액
               }
             }
           };

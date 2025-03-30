@@ -13,7 +13,7 @@
     body {
       font-family: sans-serif;
       padding: 20px;
-      max-width: 480px;
+      max-width: 360px;  /* ✅ 이전 480px보다 더 모바일에 적합 */
       margin: auto;
     }
     input, button {
@@ -21,17 +21,20 @@
       padding: 12px;
       margin-bottom: 12px;
       font-size: 16px;
+      box-sizing: border-box; /* ✅ 패딩 포함해서 width 계산 */
     }
     button {
       background-color: #4DA8FF;
       color: white;
       border: none;
       cursor: pointer;
+      border-radius: 4px;
     }
     button:hover {
       background-color: #2d91e5;
     }
   </style>
+  
   <script>
     firebase.auth().onAuthStateChanged((user) => {
       if (user) {
